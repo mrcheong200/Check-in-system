@@ -60,6 +60,20 @@
       box-shadow: 0 4px 16px rgba(0,0,0,0.08);
     }
 
+    .login-card {
+      max-width: 420px;
+      margin: 48px auto;
+    }
+
+    .login-card input {
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
     .nav {
       display: flex;
       gap: 8px;
@@ -284,137 +298,244 @@
   </header>
 
   <main class="container">
-    <div class="nav">
-      <button onclick="goScanner()">掃描簽到</button>
-      <button onclick="goAdmin()">後台名單</button>
-    </div>
 
-    <section id="scannerPage" class="card">
-      <h2>掃描 QR Code</h2>
+    <section id="loginPage" class="card login-card">
+      <h2>工作人員登入</h2>
       <p class="muted">
-        請允許瀏覽器開啟相機。QR Code 內容應為參賽者流水號。
+        請輸入活動驗證碼。
       </p>
 
-      <div id="reader"></div>
+      <input
+        id="accessCodeInput"
+        type="password"
+        placeholder="請輸入驗證碼"
+        autocomplete="off"
+        onkeydown="handleLoginEnter(event)"
+      />
 
-      <div class="manual-box">
-        <input id="manualSerial" type="text" placeholder="或手動輸入流水號，例如 A0001" />
-        <button class="btn" onclick="manualCheckIn()">手動簽到</button>
-      </div>
+      <button class="btn" onclick="login()">登入</button>
 
-      <div id="scanResult" class="result"></div>
-
-      <div style="margin-top: 16px;">
-        <button class="btn success" onclick="startScanner()">開始掃描</button>
-        <button class="btn danger" onclick="stopScanner()">停止掃描</button>
-      </div>
-
-      <p class="muted small">
-        如果相機不能啟動，請使用 HTTPS 的 GitHub Pages 網址，並用 Safari / Chrome 開啟。
-      </p>
+      <div id="loginResult" class="result"></div>
     </section>
 
-    <section id="adminPage" class="hidden">
-      <div class="card">
-        <h2>簽到統計</h2>
-
-        <div class="stats">
-          <div class="stat">
-            <div id="totalCount" class="num">0</div>
-            <div class="label">總人數</div>
-          </div>
-
-          <div class="stat">
-            <div id="arrivedCount" class="num">0</div>
-            <div class="label">已到</div>
-          </div>
-
-          <div class="stat">
-            <div id="notArrivedCount" class="num">0</div>
-            <div class="label">未到</div>
-          </div>
-        </div>
+    <section id="appPage" class="hidden">
+      <div class="nav">
+        <button onclick="goScanner()">掃描簽到</button>
+        <button onclick="goAdmin()">後台名單</button>
+        <button class="btn secondary" onclick="logout()">登出</button>
       </div>
 
-      <div class="card">
-        <div class="toolbar">
-          <div>
-            <h2 style="margin: 0;">已到參賽者</h2>
-            <p class="muted" style="margin-bottom: 0;">
-              排序：先按獎項，再按姓名。
-            </p>
-          </div>
+      <section id="scannerPage" class="card">
+        <h2>掃描 QR Code</h2>
+        <p class="muted">
+          請允許瀏覽器開啟相機。QR Code 內容應為參賽者流水號。
+        </p>
 
-          <div>
-            <input id="searchInput" type="text" placeholder="搜尋姓名、流水號、獎項" oninput="renderTable()" />
-            <button class="btn" onclick="loadAdminData()">重新整理</button>
+        <div id="reader"></div>
+
+        <div class="manual-box">
+          <input id="manualSerial" type="text" placeholder="或手動輸入流水號，例如 A0001" />
+          <button class="btn" onclick="manualCheckIn()">手動簽到</button>
+        </div>
+
+        <div id="scanResult" class="result"></div>
+
+        <div style="margin-top: 16px;">
+          <button class="btn success" onclick="startScanner()">開始掃描</button>
+          <button class="btn danger" onclick="stopScanner()">停止掃描</button>
+        </div>
+
+        <p class="muted small">
+          如果相機不能啟動，請使用 HTTPS 的 GitHub Pages 網址，並用 Safari / Chrome 開啟。
+        </p>
+      </section>
+
+      <section id="adminPage" class="hidden">
+        <div class="card">
+          <h2>簽到統計</h2>
+
+          <div class="stats">
+            <div class="stat">
+              <div id="totalCount" class="num">0</div>
+              <div class="label">總人數</div>
+            </div>
+
+            <div class="stat">
+              <div id="arrivedCount" class="num">0</div>
+              <div class="label">已到</div>
+            </div>
+
+            <div class="stat">
+              <div id="notArrivedCount" class="num">0</div>
+              <div class="label">未到</div>
+            </div>
           </div>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>獎項</th>
-                <th>姓名</th>
-                <th>流水號</th>
-                <th>電話</th>
-                <th>狀態</th>
-                <th>簽到時間</th>
-                <th>備註</th>
-              </tr>
-            </thead>
+        <div class="card">
+          <div class="toolbar">
+            <div>
+              <h2 style="margin: 0;">已到參賽者</h2>
+              <p class="muted" style="margin-bottom: 0;">
+                排序：先按獎項，再按姓名。
+              </p>
+            </div>
 
-            <tbody id="participantTable">
-              <tr>
-                <td colspan="7">載入中...</td>
-              </tr>
-            </tbody>
-          </table>
+            <div>
+              <input id="searchInput" type="text" placeholder="搜尋姓名、流水號、獎項" oninput="renderTable()" />
+              <button class="btn" onclick="loadAdminData()">重新整理</button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>獎項</th>
+                  <th>姓名</th>
+                  <th>流水號</th>
+                  <th>電話</th>
+                  <th>狀態</th>
+                  <th>簽到時間</th>
+                  <th>備註</th>
+                </tr>
+              </thead>
+
+              <tbody id="participantTable">
+                <tr>
+                  <td colspan="7">載入中...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </section>
     </section>
   </main>
 
   <script>
     /************************************************
-     * 你需要修改這兩個設定
+     * 只需要修改這個 Apps Script Web App URL
      ************************************************/
-    const API_URL = 'https://script.google.com/macros/s/AKfycbxECvkaUVN_ZE78r6jeUkAt0COuKYO0uf29ZYS06m6IzymnOAwJYLizvS0Yc4wWNcw7/exec';
-    const API_KEY = 'CHANGE_ME_123456';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzkhcIC-vmk-562cr7uQfZUxiaMVcibq10dQejqTDOoLQacxpRnl6NEsiV690vF7xJoow/exec';
 
     /************************************************
      * 系統變數
      ************************************************/
+    let accessCode = '';
     let html5QrCode = null;
     let scanning = false;
     let lastScannedText = '';
     let lastScannedAt = 0;
     let arrivedParticipants = [];
+    let adminRefreshTimer = null;
 
     const params = new URLSearchParams(window.location.search);
     const page = params.get('page') || 'scanner';
 
     document.addEventListener('DOMContentLoaded', function () {
+      showLogin();
+    });
+
+    /************************************************
+     * 登入功能
+     ************************************************/
+    function handleLoginEnter(event) {
+      if (event.key === 'Enter') {
+        login();
+      }
+    }
+
+    async function login() {
+      const code = document.getElementById('accessCodeInput').value.trim();
+
+      if (!code) {
+        showLoginResult('請輸入驗證碼', 'error');
+        return;
+      }
+
+      showLoginResult('驗證中...', 'warning');
+
+      try {
+        const res = await callApiWithoutLogin('verifyCode', {
+          accessCode: code
+        });
+
+        if (!res.success) {
+          showLoginResult(res.message || '驗證失敗', 'error');
+          return;
+        }
+
+        accessCode = code;
+
+        document.getElementById('accessCodeInput').value = '';
+        showApp();
+
+      } catch (err) {
+        showLoginResult('系統錯誤：' + err.message, 'error');
+      }
+    }
+
+    function logout() {
+      accessCode = '';
+
+      stopScanner();
+
+      if (adminRefreshTimer) {
+        clearInterval(adminRefreshTimer);
+        adminRefreshTimer = null;
+      }
+
+      showLogin();
+    }
+
+    function showLogin() {
+      document.getElementById('pageTitle').textContent = 'QR Code 簽到系統';
+      document.getElementById('loginPage').classList.remove('hidden');
+      document.getElementById('appPage').classList.add('hidden');
+    }
+
+    function showApp() {
+      document.getElementById('loginPage').classList.add('hidden');
+      document.getElementById('appPage').classList.remove('hidden');
+
       if (page === 'admin') {
         showAdmin();
       } else {
         showScanner();
       }
-    });
+    }
 
+    function showLoginResult(message, type) {
+      const box = document.getElementById('loginResult');
+      box.textContent = message;
+      box.className = 'result ' + type;
+    }
+
+    /************************************************
+     * 頁面切換
+     ************************************************/
     function goScanner() {
-      window.location.href = window.location.pathname + '?page=scanner';
+      const url = window.location.pathname + '?page=scanner';
+      window.history.pushState({}, '', url);
+      showScanner();
     }
 
     function goAdmin() {
-      window.location.href = window.location.pathname + '?page=admin';
+      const url = window.location.pathname + '?page=admin';
+      window.history.pushState({}, '', url);
+      showAdmin();
     }
 
     function showScanner() {
       document.getElementById('pageTitle').textContent = 'QR Code 簽到系統';
       document.getElementById('scannerPage').classList.remove('hidden');
       document.getElementById('adminPage').classList.add('hidden');
+
+      if (adminRefreshTimer) {
+        clearInterval(adminRefreshTimer);
+        adminRefreshTimer = null;
+      }
     }
 
     function showAdmin() {
@@ -424,19 +545,33 @@
 
       loadAdminData();
 
-      setInterval(loadAdminData, 10000);
+      if (adminRefreshTimer) {
+        clearInterval(adminRefreshTimer);
+      }
+
+      adminRefreshTimer = setInterval(loadAdminData, 10000);
     }
 
     /************************************************
      * JSONP 呼叫 Apps Script API
      ************************************************/
     function callApi(action, data = {}) {
+      if (!accessCode) {
+        return Promise.reject(new Error('尚未登入'));
+      }
+
+      return callApiWithoutLogin(action, {
+        ...data,
+        accessCode
+      });
+    }
+
+    function callApiWithoutLogin(action, data = {}) {
       return new Promise((resolve, reject) => {
         const callbackName = 'jsonpCallback_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
 
         const query = new URLSearchParams({
           action,
-          apiKey: API_KEY,
           callback: callbackName,
           ...data
         });
@@ -452,6 +587,14 @@
         window[callbackName] = function (response) {
           clearTimeout(timeout);
           cleanup();
+
+          if (response && response.authError) {
+            accessCode = '';
+            showLogin();
+            reject(new Error(response.message || '驗證失效'));
+            return;
+          }
+
           resolve(response);
         };
 
