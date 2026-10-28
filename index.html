@@ -208,6 +208,43 @@
       font-size: 15px;
     }
 
+    .status-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+    }
+
+    .status-tab {
+      border: 1px solid var(--border);
+      background: #ffffff;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 9px 16px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .status-tab:hover {
+      background: #f9fafb;
+    }
+
+    .status-tab.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .status-tab.arrived.active {
+      background: var(--success);
+      border-color: var(--success);
+    }
+
+    .status-tab.not-arrived.active {
+      background: var(--warning);
+      border-color: var(--warning);
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -244,8 +281,16 @@
       border-radius: 999px;
       font-size: 12px;
       font-weight: 700;
+    }
+
+    .arrived-badge {
       background: #dcfce7;
       color: #166534;
+    }
+
+    .not-arrived-badge {
+      background: #fef3c7;
+      color: #92400e;
     }
 
     .muted {
@@ -288,6 +333,10 @@
       .nav button {
         flex: 1;
       }
+
+      .status-tabs button {
+        flex: 1;
+      }
     }
   </style>
 </head>
@@ -301,9 +350,7 @@
 
     <section id="loginPage" class="card login-card">
       <h2>工作人員登入</h2>
-      <p class="muted">
-        請輸入活動驗證碼。
-      </p>
+      <p class="muted">請輸入活動驗證碼。</p>
 
       <input
         id="accessCodeInput"
@@ -327,9 +374,7 @@
 
       <section id="scannerPage" class="card">
         <h2>掃描 QR Code</h2>
-        <p class="muted">
-          請允許瀏覽器開啟相機。QR Code 內容應為參賽者流水號。
-        </p>
+        <p class="muted">請允許瀏覽器開啟相機。QR Code 內容應為參賽者流水號。</p>
 
         <div id="reader"></div>
 
@@ -375,16 +420,37 @@
         <div class="card">
           <div class="toolbar">
             <div>
-              <h2 style="margin: 0;">已到參賽者</h2>
-              <p class="muted" style="margin-bottom: 0;">
-                排序：先按獎項，再按姓名。
-              </p>
+              <h2 id="adminListTitle" style="margin: 0;">已到參賽者</h2>
+              <p class="muted" style="margin-bottom: 0;">排序：先按獎項，再按姓名。</p>
             </div>
 
             <div>
-              <input id="searchInput" type="text" placeholder="搜尋姓名、流水號、獎項" oninput="renderTable()" />
+              <input
+                id="searchInput"
+                type="text"
+                placeholder="搜尋姓名、流水號、獎項、電話"
+                oninput="renderTable()"
+              />
               <button class="btn" onclick="loadAdminData()">重新整理</button>
             </div>
+          </div>
+
+          <div class="status-tabs">
+            <button
+              id="arrivedTab"
+              class="status-tab arrived active"
+              onclick="switchStatusTab('已到')"
+            >
+              已到
+            </button>
+
+            <button
+              id="notArrivedTab"
+              class="status-tab not-arrived"
+              onclick="switchStatusTab('未到')"
+            >
+              未到
+            </button>
           </div>
 
           <div class="table-wrap">
@@ -414,32 +480,24 @@
   </main>
 
   <script>
-    /************************************************
-     * 只需要修改這個 Apps Script Web App URL
-     ************************************************/
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzkhcIC-vmk-562cr7uQfZUxiaMVcibq10dQejqTDOoLQacxpRnl6NEsiV690vF7xJoow/exec';
+    const API_URL = 'https://script.google.com/macros/s/你的部署ID/exec';
 
-    /************************************************
-     * 系統變數
-     ************************************************/
     let accessCode = '';
     let html5QrCode = null;
     let scanning = false;
     let lastScannedText = '';
     let lastScannedAt = 0;
-    let arrivedParticipants = [];
+    let displayedParticipants = [];
+    let currentStatusFilter = '已到';
     let adminRefreshTimer = null;
 
     const params = new URLSearchParams(window.location.search);
-    const page = params.get('page') || 'scanner';
+    const initialPage = params.get('page') || 'scanner';
 
     document.addEventListener('DOMContentLoaded', function () {
       showLogin();
     });
 
-    /************************************************
-     * 登入功能
-     ************************************************/
     function handleLoginEnter(event) {
       if (event.key === 'Enter') {
         login();
@@ -478,7 +536,6 @@
 
     function logout() {
       accessCode = '';
-
       stopScanner();
 
       if (adminRefreshTimer) {
@@ -499,7 +556,7 @@
       document.getElementById('loginPage').classList.add('hidden');
       document.getElementById('appPage').classList.remove('hidden');
 
-      if (page === 'admin') {
+      if (initialPage === 'admin') {
         showAdmin();
       } else {
         showScanner();
@@ -512,9 +569,6 @@
       box.className = 'result ' + type;
     }
 
-    /************************************************
-     * 頁面切換
-     ************************************************/
     function goScanner() {
       const url = window.location.pathname + '?page=scanner';
       window.history.pushState({}, '', url);
@@ -543,6 +597,7 @@
       document.getElementById('scannerPage').classList.add('hidden');
       document.getElementById('adminPage').classList.remove('hidden');
 
+      switchStatusTab(currentStatusFilter, false);
       loadAdminData();
 
       if (adminRefreshTimer) {
@@ -552,9 +607,37 @@
       adminRefreshTimer = setInterval(loadAdminData, 10000);
     }
 
-    /************************************************
-     * JSONP 呼叫 Apps Script API
-     ************************************************/
+    function switchStatusTab(status, shouldLoad = true) {
+      if (status !== '已到' && status !== '未到') {
+        return;
+      }
+
+      currentStatusFilter = status;
+
+      const arrivedTab = document.getElementById('arrivedTab');
+      const notArrivedTab = document.getElementById('notArrivedTab');
+      const title = document.getElementById('adminListTitle');
+      const searchInput = document.getElementById('searchInput');
+
+      if (status === '已到') {
+        arrivedTab.classList.add('active');
+        notArrivedTab.classList.remove('active');
+        title.textContent = '已到參賽者';
+      } else {
+        arrivedTab.classList.remove('active');
+        notArrivedTab.classList.add('active');
+        title.textContent = '未到參賽者';
+      }
+
+      if (searchInput) {
+        searchInput.value = '';
+      }
+
+      if (shouldLoad) {
+        loadAdminData();
+      }
+    }
+
     function callApi(action, data = {}) {
       if (!accessCode) {
         return Promise.reject(new Error('尚未登入'));
@@ -616,9 +699,6 @@
       });
     }
 
-    /************************************************
-     * 掃描功能
-     ************************************************/
     async function startScanner() {
       if (scanning) return;
 
@@ -681,9 +761,7 @@
       checkIn(decodedText);
     }
 
-    function onScanFailure(error) {
-      // 掃描過程會持續出現讀取失敗，不需要處理
-    }
+    function onScanFailure(error) {}
 
     function manualCheckIn() {
       const serial = document.getElementById('manualSerial').value.trim();
@@ -736,9 +814,6 @@
       box.className = 'result ' + type;
     }
 
-    /************************************************
-     * 後台功能
-     ************************************************/
     async function loadAdminData() {
       try {
         const stats = await callApi('getStats');
@@ -749,7 +824,12 @@
           document.getElementById('notArrivedCount').textContent = stats.notArrived;
         }
 
-        const res = await callApi('getArrived');
+        document.getElementById('participantTable').innerHTML =
+          '<tr><td colspan="7">載入中...</td></tr>';
+
+        const res = await callApi('getParticipantsByStatus', {
+          status: currentStatusFilter
+        });
 
         if (!res.success) {
           document.getElementById('participantTable').innerHTML =
@@ -757,7 +837,7 @@
           return;
         }
 
-        arrivedParticipants = res.participants || [];
+        displayedParticipants = res.participants || [];
         renderTable();
 
       } catch (err) {
@@ -773,7 +853,7 @@
 
       const tbody = document.getElementById('participantTable');
 
-      let list = arrivedParticipants;
+      let list = displayedParticipants;
 
       if (keyword) {
         list = list.filter(p => {
@@ -785,21 +865,28 @@
       }
 
       if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7">暫時沒有資料</td></tr>';
+        tbody.innerHTML =
+          `<tr><td colspan="7">暫時沒有${escapeHtml(currentStatusFilter)}參賽者</td></tr>`;
         return;
       }
 
-      tbody.innerHTML = list.map(p => `
-        <tr>
-          <td>${escapeHtml(p.prize)}</td>
-          <td><strong>${escapeHtml(p.name)}</strong></td>
-          <td>${escapeHtml(p.serial)}</td>
-          <td>${escapeHtml(p.phone)}</td>
-          <td><span class="badge">${escapeHtml(p.status)}</span></td>
-          <td>${escapeHtml(p.checkinTime)}</td>
-          <td>${escapeHtml(p.note)}</td>
-        </tr>
-      `).join('');
+      tbody.innerHTML = list.map(p => {
+        const badgeClass = p.status === '已到'
+          ? 'badge arrived-badge'
+          : 'badge not-arrived-badge';
+
+        return `
+          <tr>
+            <td>${escapeHtml(p.prize)}</td>
+            <td><strong>${escapeHtml(p.name)}</strong></td>
+            <td>${escapeHtml(p.serial)}</td>
+            <td>${escapeHtml(p.phone)}</td>
+            <td><span class="${badgeClass}">${escapeHtml(p.status)}</span></td>
+            <td>${escapeHtml(p.checkinTime)}</td>
+            <td>${escapeHtml(p.note)}</td>
+          </tr>
+        `;
+      }).join('');
     }
 
     function escapeHtml(value) {
