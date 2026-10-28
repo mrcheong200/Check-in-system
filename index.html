@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>QR Code 簽到系統</title>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --bg: #f3f4f6;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background: var(--primary);
+      color: white;
+      padding: 16px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+
+    .nav {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    button,
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 15px;
+      cursor: pointer;
+      background: var(--primary);
+      color: white;
+    }
+
+    button:hover,
+    .btn:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn.secondary {
+      background: #4b5563;
+    }
+
+    .btn.success {
+      background: var(--success);
+    }
+
+    .btn.danger {
+      background: var(--danger);
+    }
+
+    .btn.warning {
+      background: var(--warning);
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .result {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      display: none;
+      line-height: 1.5;
+    }
+
+    .result.success {
+      display: block;
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+
+    .result.error {
+      display: block;
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+
+    .result.warning {
+      display: block;
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+
+    .manual-box {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .manual-box input {
+      flex: 1;
+      min-width: 180px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 16px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .stat {
+      background: #f9fafb;
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+
+    .stat .num {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    .stat .label {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .toolbar input {
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      min-width: 220px;
+      font-size: 15px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #f9fafb;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      max-height: 70vh;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .small {
+      font-size: 13px;
+    }
+
+    @media (max-width: 640px) {
+      header h1 {
+        font-size: 18px;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      th,
+      td {
+        font-size: 13px;
+        padding: 8px;
+      }
+
+      .toolbar {
+        align-items: stretch;
+      }
+
+      .toolbar input,
+      .toolbar button {
+        width: 100%;
+      }
+
+      .nav button {
+        flex: 1;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1 id="pageTitle">QR Code 簽到系統</h1>
+  </header>
+
+  <main class="container">
+    <div class="nav">
+      <button onclick="goScanner()">掃描簽到</button>
+      <button onclick="goAdmin()">後台名單</button>
+    </div>
+
+    <section id="scannerPage" class="card">
+      <h2>掃描 QR Code</h2>
+      <p class="muted">
+        請允許瀏覽器開啟相機。QR Code 內容應為參賽者流水號。
+      </p>
+
+      <div id="reader"></div>
+
+      <div class="manual-box">
+        <input id="manualSerial" type="text" placeholder="或手動輸入流水號，例如 A0001" />
+        <button class="btn" onclick="manualCheckIn()">手動簽到</button>
+      </div>
+
+      <div id="scanResult" class="result"></div>
+
+      <div style="margin-top: 16px;">
+        <button class="btn success" onclick="startScanner()">開始掃描</button>
+        <button class="btn danger" onclick="stopScanner()">停止掃描</button>
+      </div>
+
+      <p class="muted small">
+        如果相機不能啟動，請使用 HTTPS 的 GitHub Pages 網址，並用 Safari / Chrome 開啟。
+      </p>
+    </section>
+
+    <section id="adminPage" class="hidden">
+      <div class="card">
+        <h2>簽到統計</h2>
+
+        <div class="stats">
+          <div class="stat">
+            <div id="totalCount" class="num">0</div>
+            <div class="label">總人數</div>
+          </div>
+
+          <div class="stat">
+            <div id="arrivedCount" class="num">0</div>
+            <div class="label">已到</div>
+          </div>
+
+          <div class="stat">
+            <div id="notArrivedCount" class="num">0</div>
+            <div class="label">未到</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <div>
+            <h2 style="margin: 0;">已到參賽者</h2>
+            <p class="muted" style="margin-bottom: 0;">
+              排序：先按獎項，再按姓名。
+            </p>
+          </div>
+
+          <div>
+            <input id="searchInput" type="text" placeholder="搜尋姓名、流水號、獎項" oninput="renderTable()" />
+            <button class="btn" onclick="loadAdminData()">重新整理</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>獎項</th>
+                <th>姓名</th>
+                <th>流水號</th>
+                <th>電話</th>
+                <th>狀態</th>
+                <th>簽到時間</th>
+                <th>備註</th>
+              </tr>
+            </thead>
+
+            <tbody id="participantTable">
+              <tr>
+                <td colspan="7">載入中...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    /************************************************
+     * 你需要修改這兩個設定
+     ************************************************/
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxECvkaUVN_ZE78r6jeUkAt0COuKYO0uf29ZYS06m6IzymnOAwJYLizvS0Yc4wWNcw7/exec';
+    const API_KEY = 'CHANGE_ME_123456';
+
+    /************************************************
+     * 系統變數
+     ************************************************/
+    let html5QrCode = null;
+    let scanning = false;
+    let lastScannedText = '';
+    let lastScannedAt = 0;
+    let arrivedParticipants = [];
+
+    const params = new URLSearchParams(window.location.search);
+    const page = params.get('page') || 'scanner';
+
+    document.addEventListener('DOMContentLoaded', function () {
+      if (page === 'admin') {
+        showAdmin();
+      } else {
+        showScanner();
+      }
+    });
+
+    function goScanner() {
+      window.location.href = window.location.pathname + '?page=scanner';
+    }
+
+    function goAdmin() {
+      window.location.href = window.location.pathname + '?page=admin';
+    }
+
+    function showScanner() {
+      document.getElementById('pageTitle').textContent = 'QR Code 簽到系統';
+      document.getElementById('scannerPage').classList.remove('hidden');
+      document.getElementById('adminPage').classList.add('hidden');
+    }
+
+    function showAdmin() {
+      document.getElementById('pageTitle').textContent = '簽到後台';
+      document.getElementById('scannerPage').classList.add('hidden');
+      document.getElementById('adminPage').classList.remove('hidden');
+
+      loadAdminData();
+
+      setInterval(loadAdminData, 10000);
+    }
+
+    /************************************************
+     * JSONP 呼叫 Apps Script API
+     ************************************************/
+    function callApi(action, data = {}) {
+      return new Promise((resolve, reject) => {
+        const callbackName = 'jsonpCallback_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+
+        const query = new URLSearchParams({
+          action,
+          apiKey: API_KEY,
+          callback: callbackName,
+          ...data
+        });
+
+        const script = document.createElement('script');
+        script.src = API_URL + '?' + query.toString();
+
+        const timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error('API 請求逾時'));
+        }, 15000);
+
+        window[callbackName] = function (response) {
+          clearTimeout(timeout);
+          cleanup();
+          resolve(response);
+        };
+
+        script.onerror = function () {
+          clearTimeout(timeout);
+          cleanup();
+          reject(new Error('無法連接 API'));
+        };
+
+        function cleanup() {
+          delete window[callbackName];
+
+          if (script.parentNode) {
+            script.parentNode.removeChild(script);
+          }
+        }
+
+        document.body.appendChild(script);
+      });
+    }
+
+    /************************************************
+     * 掃描功能
+     ************************************************/
+    async function startScanner() {
+      if (scanning) return;
+
+      const reader = document.getElementById('reader');
+      reader.innerHTML = '';
+
+      html5QrCode = new Html5Qrcode('reader');
+
+      const config = {
+        fps: 10,
+        qrbox: {
+          width: 250,
+          height: 250
+        },
+        rememberLastUsedCamera: true
+      };
+
+      try {
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          config,
+          onScanSuccess,
+          onScanFailure
+        );
+
+        scanning = true;
+        showResult('相機已啟動，請掃描 QR Code', 'warning');
+      } catch (err) {
+        showResult(
+          '無法開啟相機。請確認已允許瀏覽器使用相機，並使用 HTTPS 網址。',
+          'error'
+        );
+      }
+    }
+
+    async function stopScanner() {
+      if (!html5QrCode || !scanning) return;
+
+      try {
+        await html5QrCode.stop();
+        html5QrCode.clear();
+
+        scanning = false;
+        showResult('已停止掃描', 'warning');
+      } catch (err) {
+        showResult('停止掃描時發生錯誤', 'error');
+      }
+    }
+
+    function onScanSuccess(decodedText) {
+      const now = Date.now();
+
+      if (decodedText === lastScannedText && now - lastScannedAt < 3000) {
+        return;
+      }
+
+      lastScannedText = decodedText;
+      lastScannedAt = now;
+
+      checkIn(decodedText);
+    }
+
+    function onScanFailure(error) {
+      // 掃描過程會持續出現讀取失敗，不需要處理
+    }
+
+    function manualCheckIn() {
+      const serial = document.getElementById('manualSerial').value.trim();
+
+      if (!serial) {
+        showResult('請輸入流水號', 'error');
+        return;
+      }
+
+      checkIn(serial);
+    }
+
+    async function checkIn(serial) {
+      showResult('處理中：' + serial, 'warning');
+
+      try {
+        const res = await callApi('checkIn', {
+          serial
+        });
+
+        if (!res.success) {
+          showResult(res.message, 'error');
+          return;
+        }
+
+        const p = res.participant || {};
+
+        if (res.duplicate) {
+          showResult(
+            `重複簽到：${p.name || ''}<br>獎項：${p.prize || ''}<br>流水號：${p.serial || ''}`,
+            'warning'
+          );
+        } else {
+          showResult(
+            `簽到成功：${p.name || ''}<br>獎項：${p.prize || ''}<br>流水號：${p.serial || ''}`,
+            'success'
+          );
+        }
+
+        document.getElementById('manualSerial').value = '';
+
+      } catch (err) {
+        showResult('系統錯誤：' + err.message, 'error');
+      }
+    }
+
+    function showResult(message, type) {
+      const box = document.getElementById('scanResult');
+      box.innerHTML = message;
+      box.className = 'result ' + type;
+    }
+
+    /************************************************
+     * 後台功能
+     ************************************************/
+    async function loadAdminData() {
+      try {
+        const stats = await callApi('getStats');
+
+        if (stats.success) {
+          document.getElementById('totalCount').textContent = stats.total;
+          document.getElementById('arrivedCount').textContent = stats.arrived;
+          document.getElementById('notArrivedCount').textContent = stats.notArrived;
+        }
+
+        const res = await callApi('getArrived');
+
+        if (!res.success) {
+          document.getElementById('participantTable').innerHTML =
+            `<tr><td colspan="7">${escapeHtml(res.message)}</td></tr>`;
+          return;
+        }
+
+        arrivedParticipants = res.participants || [];
+        renderTable();
+
+      } catch (err) {
+        document.getElementById('participantTable').innerHTML =
+          `<tr><td colspan="7">系統錯誤：${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function renderTable() {
+      const keyword = document.getElementById('searchInput')
+        ? document.getElementById('searchInput').value.trim().toLowerCase()
+        : '';
+
+      const tbody = document.getElementById('participantTable');
+
+      let list = arrivedParticipants;
+
+      if (keyword) {
+        list = list.filter(p => {
+          return String(p.serial || '').toLowerCase().includes(keyword) ||
+                 String(p.name || '').toLowerCase().includes(keyword) ||
+                 String(p.prize || '').toLowerCase().includes(keyword) ||
+                 String(p.phone || '').toLowerCase().includes(keyword);
+        });
+      }
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7">暫時沒有資料</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(p => `
+        <tr>
+          <td>${escapeHtml(p.prize)}</td>
+          <td><strong>${escapeHtml(p.name)}</strong></td>
+          <td>${escapeHtml(p.serial)}</td>
+          <td>${escapeHtml(p.phone)}</td>
+          <td><span class="badge">${escapeHtml(p.status)}</span></td>
+          <td>${escapeHtml(p.checkinTime)}</td>
+          <td>${escapeHtml(p.note)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+  </script>
+</body>
+</html>
